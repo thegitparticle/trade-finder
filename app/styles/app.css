@@ -1,0 +1,236 @@
+:root {
+  --font-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+  --brand-orange: #ea580c;
+  --brand-green: #059669;
+  --bg: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --card-bg: #f8fafc;
+  --card-border: #e2e8f0;
+  --grid-line: rgba(15, 23, 42, 0.03);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+.dark {
+  --bg: #050505;
+  --text: rgba(255, 255, 255, 0.9);
+  --muted: rgba(255, 255, 255, 0.3);
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: rgba(255, 255, 255, 0.05);
+  --grid-line: rgba(255, 255, 255, 0.03);
+}
+
+.dense {
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.page > * {
+  position: relative;
+  z-index: 2;
+}
+
+.scanline {
+  width: 100%;
+  height: 2px;
+  background: rgba(249, 115, 22, 0.1);
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  animation: scan 4s linear infinite;
+  z-index: 5;
+}
+
+@keyframes scan {
+  0% {
+    top: 0;
+  }
+  100% {
+    top: 100%;
+  }
+}
+
+.container {
+  width: min(1100px, 92%);
+  margin: 0 auto;
+  padding: 24px 0;
+}
+
+.header {
+  border-bottom: 1px solid var(--card-border);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+.dark .header {
+  background: rgba(5, 5, 5, 0.7);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.brand h1 {
+  margin: 0;
+  color: var(--brand-orange);
+  font-size: 1.4rem;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  font-style: italic;
+}
+
+.brand span {
+  display: block;
+  font-size: 0.85rem;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+}
+
+.page-header {
+  text-align: right;
+  margin-bottom: 16px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: 24px;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0;
+  padding: 16px 20px;
+  position: relative;
+}
+
+.card::after,
+.card::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+}
+
+.card::after {
+  top: 0;
+  right: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.card::before {
+  bottom: 0;
+  left: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+html:not(.dark) .card::after,
+html:not(.dark) .card::before {
+  border-color: #94a3b8;
+}
+
+.card-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+}
+
+.card-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.button {
+  border: 1px solid var(--card-border);
+  border-radius: 0;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: transparent;
+}
+
+.button-orange {
+  border-color: rgba(249, 115, 22, 0.6);
+  color: var(--brand-orange);
+}
+
+.button-green {
+  border-color: rgba(16, 185, 129, 0.6);
+  color: var(--brand-green);
+}
+
+.footer {
+  border-top: 1px solid var(--card-border);
+  margin-top: 40px;
+}
+
+.footer .container {
+  padding: 20px 0;
+  text-align: center;
+}

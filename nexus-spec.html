@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS.OS | Industrial UI Spec</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-sans: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+        body {
+            font-family: var(--font-sans);
+            margin: 0;
+            padding: 0;
+        }
+        .mono { font-family: var(--font-mono); }
+        
+        /* Industrial Corner Brackets */
+        .neo-card {
+            position: relative;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 1.5rem;
+        }
+        .neo-card::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 8px; height: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .neo-card::before {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 8px; height: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Light Mode Overrides */
+        html:not(.dark) .neo-card {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+        html:not(.dark) .neo-card::after,
+        html:not(.dark) .neo-card::before {
+            border-color: #94a3b8;
+        }
+        
+        .scanline {
+            width: 100%;
+            height: 2px;
+            background: rgba(249, 115, 22, 0.1);
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            animation: scan 4s linear infinite;
+            z-index: 50;
+        }
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-[#050505] text-slate-900 dark:text-white/90 min-h-screen">
+    <div class="scanline"></div>
+    
+    <div class="max-w-6xl mx-auto p-8 space-y-12">
+        <!-- Header -->
+        <header class="border-b border-slate-100 dark:border-white/5 pb-6 flex justify-between items-end">
+            <div>
+                <h1 class="text-4xl font-bold tracking-tighter uppercase italic text-orange-600 dark:text-orange-400 mono">Nexus.OS UI Spec</h1>
+                <p class="text-xs mono text-slate-500 dark:text-white/30 tracking-[0.3em] mt-2 uppercase">Protocol: Industrial-Minimalism-v2.0</p>
+            </div>
+            <button onclick="document.documentElement.classList.toggle('dark')" class="px-4 py-2 border border-slate-200 dark:border-white/10 mono text-[10px] uppercase tracking-widest hover:bg-orange-500/10 transition-all cursor-pointer">
+                Switch Power Mode
+            </button>
+        </header>
+
+        <!-- Color Palette -->
+        <section>
+            <h2 class="text-xs mono uppercase tracking-widest text-slate-400 dark:text-white/30 mb-6">01. Color Palette</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="space-y-2">
+                    <div class="h-24 bg-orange-500"></div>
+                    <p class="mono text-[10px]">#F97316 (Primary Accent)</p>
+                </div>
+                <div class="space-y-2">
+                    <div class="h-24 bg-emerald-500"></div>
+                    <p class="mono text-[10px]">#10B981 (Secondary Accent)</p>
+                </div>
+                <div class="space-y-2">
+                    <div class="h-24 bg-[#050505] border border-white/10"></div>
+                    <p class="mono text-[10px]">#050505 (Dark Surface)</p>
+                </div>
+                <div class="space-y-2">
+                    <div class="h-24 bg-slate-50 border border-slate-200"></div>
+                    <p class="mono text-[10px]">#F8FAFC (Light Surface)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Typography -->
+        <section class="grid md:grid-cols-2 gap-12">
+            <div>
+                <h2 class="text-xs mono uppercase tracking-widest text-slate-400 dark:text-white/30 mb-6">02. Typography</h2>
+                <div class="space-y-6">
+                    <div>
+                        <p class="text-4xl font-bold tracking-tighter">Space Grotesk Bold</p>
+                        <p class="mono text-[10px] text-orange-500 mt-1">Headings & High-Level Data</p>
+                    </div>
+                    <div>
+                        <p class="mono text-lg">JetBrains Mono Regular</p>
+                        <p class="mono text-[10px] text-orange-500 mt-1">Technical Data & Status Tags</p>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h2 class="text-xs mono uppercase tracking-widest text-slate-400 dark:text-white/30 mb-6">03. Spacing Logic</h2>
+                <div class="space-y-4 mono text-sm border-l-2 border-orange-500/20 pl-4">
+                    <p>Base Unit: 4px (1rem = 16px)</p>
+                    <p>Grid Gap: 24px (1.5rem)</p>
+                    <p>Card Padding: 16px - 24px</p>
+                    <p>Radius: 0px (Absolute Industrial Square)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Component Examples -->
+        <section>
+            <h2 class="text-xs mono uppercase tracking-widest text-slate-400 dark:text-white/30 mb-6">04. Live Components</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="neo-card">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                        <span class="mono text-[10px] uppercase tracking-widest text-slate-500 dark:text-white/40">Component Example</span>
+                    </div>
+                    <p class="text-3xl font-light tracking-tighter">98.42%</p>
+                    <p class="mono text-[10px] text-emerald-500 mt-1">+0.04 SYNC STABLE</p>
+                </div>
+                
+                <div class="neo-card">
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-[10px] mono">
+                            <span class="text-slate-400 dark:text-white/20 uppercase">Core Integrity</span>
+                            <span class="text-orange-500">OPTIMAL</span>
+                        </div>
+                        <div class="h-1 bg-slate-200 dark:bg-white/5 rounded-none overflow-hidden">
+                            <div class="h-full bg-orange-500 w-[94%]"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</body>
+</html>
