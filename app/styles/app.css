@@ -1,0 +1,2 @@
+/* Compatibility shim: keep legacy path to reduce merge conflicts with older branches. */
+@import url('../../public/app/styles/app.css');
