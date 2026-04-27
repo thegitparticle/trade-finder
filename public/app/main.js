@@ -93,7 +93,7 @@ function Header() {
     <header className="header">
       <div className="container header-inner">
         <div className="brand">
-          <h1>RSI Trade Dashboard</h1>
+          <h1>Market Monitor</h1>
           <span className="muted mono">Hyperliquid • Hourly scan • Cloudflare Workers</span>
         </div>
         <div className="controls">
