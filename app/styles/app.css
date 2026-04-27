@@ -80,7 +80,7 @@ body {
 }
 
 .container {
-  width: min(1100px, 92%);
+  width: min(1200px, 94%);
   margin: 0 auto;
   padding: 24px 0;
 }
@@ -131,11 +131,8 @@ body {
   color: var(--muted);
 }
 
-.card-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 24px;
+.error {
+  color: #ef4444;
 }
 
 .grid {
@@ -143,6 +140,10 @@ body {
   gap: 16px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   margin-bottom: 24px;
+}
+
+.market-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
 .card {
@@ -201,6 +202,10 @@ html:not(.dark) .card::before {
   flex-wrap: wrap;
 }
 
+.spread {
+  justify-content: space-between;
+}
+
 .button {
   border: 1px solid var(--card-border);
   border-radius: 0;
@@ -223,6 +228,48 @@ html:not(.dark) .card::before {
 .button-green {
   border-color: rgba(16, 185, 129, 0.6);
   color: var(--brand-green);
+}
+
+.signal-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.signal-item {
+  border: 1px solid var(--card-border);
+  padding: 10px;
+}
+
+.signal-title {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.signal-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 4px 0;
+}
+
+.market-card .price {
+  font-size: 0.9rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 0.82rem;
+}
+
+.ohlcv {
+  margin-top: 12px;
+  font-size: 0.75rem;
+  line-height: 1.45;
 }
 
 .footer {

@@ -1,12 +1,8 @@
-const http = require('http')
-const fs = require('fs')
-const path = require('path')
-const url = require('url')
-
-const port = process.env.PORT ? Number(process.env.PORT) : 5173
-const rootDir = __dirname
 const HYPERLIQUID_API_URL = 'https://api.hyperliquid.xyz/info'
+const HOURLY_INTERVAL = '1h'
+const DAILY_INTERVAL = '1d'
 const RSI_PERIOD = 14
+const SNAPSHOT_KV_KEY = 'market-snapshot-v1'
 
 const MARKETS = [
   { id: 'BTC', coins: ['BTC'], label: 'Bitcoin' },
@@ -19,80 +15,81 @@ const MARKETS = [
   { id: 'GOLD', coins: ['GOLD', 'XAU'], label: 'Gold' },
 ]
 
-const contentTypes = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url)
+
+    if (url.pathname === '/api/markets') {
+      const force = url.searchParams.get('refresh') === '1'
+      const snapshot = await getOrRefreshSnapshot(env, force)
+      return json(snapshot)
+    }
+
+    if (url.pathname === '/api/health') {
+      return json({ ok: true, now: new Date().toISOString() })
+    }
+
+    if (env.ASSETS) {
+      return env.ASSETS.fetch(request)
+    }
+
+    return new Response('Not found', { status: 404 })
+  },
+
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(refreshAndPersistSnapshot(env))
+  },
 }
 
-const server = http.createServer(async (req, res) => {
-  if (!req.url) {
-    res.writeHead(400)
-    res.end('Bad request')
-    return
-  }
-
-  const { pathname } = url.parse(req.url)
-
-  if (pathname === '/api/markets') {
-    try {
-      const payload = await buildSnapshot()
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
-      res.end(JSON.stringify(payload))
-    } catch (error) {
-      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' })
-      res.end(JSON.stringify({ error: error.message || 'Failed to build snapshot' }))
+async function getOrRefreshSnapshot(env, forceRefresh = false) {
+  if (!forceRefresh && env.MARKET_CACHE) {
+    const existing = await env.MARKET_CACHE.get(SNAPSHOT_KV_KEY, 'json')
+    if (existing) {
+      return existing
     }
-    return
   }
 
-  const safePath = pathname === '/' ? '/index.html' : pathname
-  const filePath = path.join(rootDir, decodeURIComponent(safePath))
+  return refreshAndPersistSnapshot(env)
+}
 
-  if (!filePath.startsWith(rootDir)) {
-    res.writeHead(403)
-    res.end('Forbidden')
-    return
-  }
-
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
-      res.writeHead(404)
-      res.end('Not found')
-      return
-    }
-
-    const ext = path.extname(filePath)
-    res.writeHead(200, { 'Content-Type': contentTypes[ext] || 'application/octet-stream' })
-    res.end(data)
-  })
-})
-
-server.listen(port, () => {
-  console.log(`Dev server running at http://localhost:${port}`)
-})
-
-async function buildSnapshot() {
+async function refreshAndPersistSnapshot(env) {
   const now = Date.now()
   const oneHourMs = 60 * 60 * 1000
   const oneDayMs = 24 * oneHourMs
   const hourlyStart = now - 72 * oneHourMs
   const dailyStart = now - 30 * oneDayMs
 
-  const markets = await Promise.all(
+  const marketResults = await Promise.all(
     MARKETS.map(async (market) => {
       try {
         const { coin, hourlyCandles, dailyCandles } = await fetchMarketCandles(market, hourlyStart, dailyStart, now)
 
+        if (!hourlyCandles.length) {
+          throw new Error('No hourly candle data returned')
+        }
+
         const closes = hourlyCandles.map((candle) => candle.close)
         const rsiSeries = calculateRsiSeries(closes, RSI_PERIOD)
         const currentRsi = rsiSeries.length ? round(rsiSeries[rsiSeries.length - 1], 2) : null
+
         const recentRsi = rsiSeries.slice(-24)
+        const meanRsi = recentRsi.length ? round(mean(recentRsi), 2) : null
+        const medianRsi = recentRsi.length ? round(median(recentRsi), 2) : null
+        const rsiHigh = recentRsi.length ? round(Math.max(...recentRsi), 2) : null
+        const rsiLow = recentRsi.length ? round(Math.min(...recentRsi), 2) : null
 
         const currentPrice = closes.at(-1)
         const previousHourClose = closes.at(-2)
         const close24hAgo = closes.length > 24 ? closes.at(-25) : null
+
+        const priceChange1hPct =
+          previousHourClose && currentPrice
+            ? round(((currentPrice - previousHourClose) / previousHourClose) * 100, 3)
+            : null
+        const priceChange24hPct =
+          close24hAgo && currentPrice ? round(((currentPrice - close24hAgo) / close24hAgo) * 100, 3) : null
+
+        const latestHourly = hourlyCandles.at(-1)
 
         return {
           id: market.id,
@@ -100,18 +97,15 @@ async function buildSnapshot() {
           coin,
           currentPrice: currentPrice ? round(currentPrice, 6) : null,
           currentRsi,
-          rsi24hMean: recentRsi.length ? round(mean(recentRsi), 2) : null,
-          rsi24hMedian: recentRsi.length ? round(median(recentRsi), 2) : null,
-          rsi24hHigh: recentRsi.length ? round(Math.max(...recentRsi), 2) : null,
-          rsi24hLow: recentRsi.length ? round(Math.min(...recentRsi), 2) : null,
-          priceChange1hPct:
-            previousHourClose && currentPrice
-              ? round(((currentPrice - previousHourClose) / previousHourClose) * 100, 3)
-              : null,
-          priceChange24hPct:
-            close24hAgo && currentPrice ? round(((currentPrice - close24hAgo) / close24hAgo) * 100, 3) : null,
-          latestHourlyOhlcv: hourlyCandles.at(-1) || null,
+          rsi24hMean: meanRsi,
+          rsi24hMedian: medianRsi,
+          rsi24hHigh: rsiHigh,
+          rsi24hLow: rsiLow,
+          priceChange1hPct,
+          priceChange24hPct,
+          latestHourlyOhlcv: latestHourly || null,
           dailyOhlcv: dailyCandles,
+          source: 'hyperliquid',
           error: null,
         }
       } catch (error) {
@@ -129,27 +123,39 @@ async function buildSnapshot() {
           priceChange24hPct: null,
           latestHourlyOhlcv: null,
           dailyOhlcv: [],
-          error: error.message || `No usable symbol for ${market.id}`,
+          source: 'hyperliquid',
+          error: error instanceof Error ? error.message : `No usable symbol for ${market.id}`,
         }
       }
     })
   )
 
-  return {
+  const liveTradeFinder = marketResults
+    .filter((market) => typeof market.currentRsi === 'number' && market.currentRsi <= 25)
+    .sort((a, b) => a.currentRsi - b.currentRsi)
+    .map((market) => ({
+      id: market.id,
+      label: market.label,
+      currentPrice: market.currentPrice,
+      currentRsi: market.currentRsi,
+      priceChange24hPct: market.priceChange24hPct,
+    }))
+
+  const snapshot = {
     generatedAt: new Date().toISOString(),
     schedule: '0 * * * *',
-    markets,
-    liveTradeFinder: markets
-      .filter((market) => typeof market.currentRsi === 'number' && market.currentRsi <= 25)
-      .sort((a, b) => a.currentRsi - b.currentRsi)
-      .map((market) => ({
-        id: market.id,
-        label: market.label,
-        currentPrice: market.currentPrice,
-        currentRsi: market.currentRsi,
-        priceChange24hPct: market.priceChange24hPct,
-      })),
+    note: 'Hourly RSI analysis generated from Hyperliquid candles.',
+    markets: marketResults,
+    liveTradeFinder,
   }
+
+  if (env.MARKET_CACHE) {
+    await env.MARKET_CACHE.put(SNAPSHOT_KV_KEY, JSON.stringify(snapshot), {
+      expirationTtl: 60 * 60 * 6,
+    })
+  }
+
+  return snapshot
 }
 
 async function fetchCandles(coin, interval, startTime, endTime) {
@@ -168,34 +174,36 @@ async function fetchCandles(coin, interval, startTime, endTime) {
   })
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${coin}/${interval}: ${response.status}`)
+    throw new Error(`Failed to fetch ${coin} (${interval}) - HTTP ${response.status}`)
   }
 
   const payload = await response.json()
   if (!Array.isArray(payload)) {
-    throw new Error(`Invalid candle payload for ${coin}/${interval}`)
+    throw new Error(`Unexpected candle payload for ${coin} (${interval})`)
   }
 
-  return payload.map((item) => ({
-    startTime: Number(item.t),
-    endTime: Number(item.T),
-    open: Number(item.o),
-    high: Number(item.h),
-    low: Number(item.l),
-    close: Number(item.c),
-    volume: Number(item.v),
-    trades: Number(item.n),
-  }))
+  return payload
+    .map((item) => ({
+      startTime: Number(item.t),
+      endTime: Number(item.T),
+      open: Number(item.o),
+      high: Number(item.h),
+      low: Number(item.l),
+      close: Number(item.c),
+      volume: Number(item.v),
+      trades: Number(item.n),
+    }))
+    .filter((item) => Number.isFinite(item.close))
 }
 
 async function fetchMarketCandles(market, hourlyStart, dailyStart, now) {
-  const attempts = []
+  const errors = []
 
   for (const coin of market.coins) {
     try {
       const [hourlyCandles, dailyCandles] = await Promise.all([
-        fetchCandles(coin, '1h', hourlyStart, now),
-        fetchCandles(coin, '1d', dailyStart, now),
+        fetchCandles(coin, HOURLY_INTERVAL, hourlyStart, now),
+        fetchCandles(coin, DAILY_INTERVAL, dailyStart, now),
       ])
 
       if (!hourlyCandles.length) {
@@ -205,11 +213,11 @@ async function fetchMarketCandles(market, hourlyStart, dailyStart, now) {
       return { coin, hourlyCandles, dailyCandles }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      attempts.push(`${coin}: ${message}`)
+      errors.push(`${coin}: ${message}`)
     }
   }
 
-  throw new Error(`No symbol matched for ${market.id}. Attempts -> ${attempts.join(' | ')}`)
+  throw new Error(`No symbol matched for ${market.id}. Attempts -> ${errors.join(' | ')}`)
 }
 
 function calculateRsiSeries(closes, period) {
@@ -219,6 +227,7 @@ function calculateRsiSeries(closes, period) {
 
   const gains = []
   const losses = []
+
   for (let i = 1; i < closes.length; i += 1) {
     const delta = closes[i] - closes[i - 1]
     gains.push(Math.max(delta, 0))
@@ -227,21 +236,22 @@ function calculateRsiSeries(closes, period) {
 
   let avgGain = mean(gains.slice(0, period))
   let avgLoss = mean(losses.slice(0, period))
-  const rsi = [singleRsi(avgGain, avgLoss)]
+  const rsi = [calculateSingleRsi(avgGain, avgLoss)]
 
   for (let i = period; i < gains.length; i += 1) {
     avgGain = (avgGain * (period - 1) + gains[i]) / period
     avgLoss = (avgLoss * (period - 1) + losses[i]) / period
-    rsi.push(singleRsi(avgGain, avgLoss))
+    rsi.push(calculateSingleRsi(avgGain, avgLoss))
   }
 
   return rsi
 }
 
-function singleRsi(avgGain, avgLoss) {
+function calculateSingleRsi(avgGain, avgLoss) {
   if (avgLoss === 0) {
     return 100
   }
+
   const rs = avgGain / avgLoss
   return 100 - 100 / (1 + rs)
 }
@@ -250,22 +260,37 @@ function mean(values) {
   if (!values.length) {
     return 0
   }
-  return values.reduce((sum, value) => sum + value, 0) / values.length
+
+  const total = values.reduce((sum, value) => sum + value, 0)
+  return total / values.length
 }
 
 function median(values) {
   if (!values.length) {
     return 0
   }
+
   const sorted = [...values].sort((a, b) => a - b)
   const middle = Math.floor(sorted.length / 2)
+
   if (sorted.length % 2 === 0) {
     return (sorted[middle - 1] + sorted[middle]) / 2
   }
+
   return sorted[middle]
 }
 
 function round(value, decimals) {
   const factor = 10 ** decimals
   return Math.round(value * factor) / factor
+}
+
+function json(payload, init = {}) {
+  return new Response(JSON.stringify(payload), {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      ...(init.headers || {}),
+    },
+  })
 }

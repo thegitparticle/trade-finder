@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "trade-finder-dashboard",
+  "main": "worker.js",
+  "compatibility_date": "2026-04-27",
+  "assets": {
+    "directory": ".",
+    "not_found_handling": "single-page-application"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "MARKET_CACHE",
+      "id": "replace-with-your-kv-id",
+      "preview_id": "replace-with-your-preview-kv-id"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 * * * *"]
+  }
+}
