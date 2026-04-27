@@ -55,7 +55,7 @@ npm run deploy
 ## Pre-deploy sanity checks
 
 ```bash
-node --check app/main.js
+node --check public/app/main.js
 node --check dev-server.js
 node --check worker.js
 ```
