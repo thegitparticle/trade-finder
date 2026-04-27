@@ -5,22 +5,38 @@ import htm from 'https://esm.sh/htm@3.1.1'
 const html = htm.bind(React.createElement)
 
 function App() {
-  const lastUpdated = useMemo(() => new Date().toISOString(), [])
-  const buildRandom = useMemo(() => {
-    return {
-      value: Math.floor(Math.random() * 1000),
-      generatedAt: new Date().toISOString(),
+  const [snapshot, setSnapshot] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const lastUpdated = useMemo(() => {
+    return snapshot?.generatedAt ? new Date(snapshot.generatedAt).toLocaleString() : '—'
+  }, [snapshot])
+
+  const refreshData = async (force = false) => {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/markets${force ? '?refresh=1' : ''}`)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch market snapshot: ${response.status}`)
+      }
+      const json = await response.json()
+      setSnapshot(json)
+    } catch (fetchError) {
+      console.error(fetchError)
+      setError(fetchError instanceof Error ? fetchError.message : 'Unknown fetch error')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    refreshData()
   }, [])
-  const stats = useMemo(
-    () => ({
-      totalUsers: 12345,
-      activeUsers: 3210,
-      revenue: 123456,
-      growthRate: 2.4,
-    }),
-    []
-  )
+
+  const liveSignals = snapshot?.liveTradeFinder || []
+  const markets = snapshot?.markets || []
 
   return html`
     <div className="page">
@@ -28,25 +44,43 @@ function App() {
       <${Header} />
       <main className="container">
         <div className="page-header">
-          <p className="muted mono">Last updated: ${new Date(lastUpdated).toLocaleString()}</p>
+          <p className="muted mono">Last updated: ${lastUpdated}</p>
+          <p className="muted mono">Schedule: ${snapshot?.schedule || '0 * * * *'} (hourly cron)</p>
         </div>
-        <section className="card-row">
-          <div className="card">
-            <div className="card-label mono">Build-time value (static)</div>
-            <div className="card-value">${buildRandom.value}</div>
-            <div className="muted mono">${new Date(buildRandom.generatedAt).toLocaleString()}</div>
+
+        <section className="card">
+          <div className="card-actions spread">
+            <div>
+              <div className="card-label mono">Live Trade Finder</div>
+              <div className="muted mono">Markets with RSI ≤ 25 on 1h candles</div>
+            </div>
+            <button className="button button-orange" onClick=${() => refreshData(true)}>
+              ${loading ? 'Refreshing...' : 'Refresh now'}
+            </button>
           </div>
-          <${RuntimeRandom} />
+          ${error
+            ? html`<p className="error mono">${error}</p>`
+            : liveSignals.length
+              ? html`
+                  <div className="signal-list">
+                    ${liveSignals.map(
+                      (signal) => html`
+                        <div className="signal-item">
+                          <div className="signal-title mono">${signal.id}</div>
+                          <div className="signal-value">RSI ${formatMetric(signal.currentRsi)}</div>
+                          <div className="muted mono">
+                            Price ${formatPrice(signal.currentPrice)} • 24h ${formatPct(signal.priceChange24hPct)}
+                          </div>
+                        </div>
+                      `
+                    )}
+                  </div>
+                `
+              : html`<p className="muted mono">No live RSI opportunities ≤ 25 right now.</p>`}
         </section>
-        <section className="grid">
-          <${StatCard} label="Total Users" value=${stats.totalUsers.toLocaleString()} />
-          <${StatCard} label="Active Users" value=${stats.activeUsers.toLocaleString()} />
-          <${StatCard} label="Revenue" value=${`$${stats.revenue.toLocaleString()}`} />
-          <${StatCard} label="Growth Rate" value=${`${stats.growthRate}%`} />
-        </section>
-        <section className="grid">
-          <div className="card">Overview charts placeholder</div>
-          <div className="card">Trend chart placeholder</div>
+
+        <section className="grid market-grid">
+          ${markets.map((market) => html`<${MarketCard} key=${market.id} market=${market} />`)}
         </section>
       </main>
       <${Footer} />
@@ -59,8 +93,8 @@ function Header() {
     <header className="header">
       <div className="container header-inner">
         <div className="brand">
-          <h1>Dashboard</h1>
-          <span className="muted mono">Industrial • Dense • Small</span>
+          <h1>RSI Trade Dashboard</h1>
+          <span className="muted mono">Hyperliquid • Hourly scan • Cloudflare Workers</span>
         </div>
         <div className="controls">
           <${ThemeToggle} />
@@ -75,56 +109,63 @@ function Footer() {
   return html`
     <footer className="footer">
       <div className="container">
-        <p className="muted mono">Built with Cloudflare Pages • Updated every hour</p>
+        <p className="muted mono">Cloudflare Worker + hourly cron + KV cache snapshot</p>
       </div>
     </footer>
   `
 }
 
-function StatCard({ label, value }) {
+function MarketCard({ market }) {
   return html`
-    <div className="card">
-      <div className="card-label mono">${label}</div>
-      <div className="card-value">${value}</div>
-    </div>
-  `
-}
-
-function RuntimeRandom() {
-  const [value, setValue] = useState(null)
-  const [generatedAt, setGeneratedAt] = useState(null)
-  const [loading, setLoading] = useState(false)
-
-  const fetchRuntime = async () => {
-    setLoading(true)
-    try {
-      const response = await fetch('/api/random')
-      if (!response.ok) {
-        throw new Error('Failed to fetch runtime random')
-      }
-      const json = await response.json()
-      setValue(json.value)
-      setGeneratedAt(json.generatedAt)
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchRuntime()
-  }, [])
-
-  return html`
-    <div className="card">
-      <div className="card-label mono">Runtime value (client-side)</div>
-      <div className="card-value">${loading ? '...' : value ?? '—'}</div>
-      <div className="card-actions">
-        <span className="muted mono">${generatedAt ? new Date(generatedAt).toLocaleString() : ''}</span>
-        <button className="button button-orange" onClick=${fetchRuntime}>Refresh</button>
+    <article className="card market-card">
+      <div className="card-actions spread">
+        <div>
+          <div className="card-label mono">${market.label}</div>
+          <div className="card-value">${market.id}</div>
+        </div>
+        <div className="price mono">${formatPrice(market.currentPrice)}</div>
       </div>
-    </div>
+
+      ${market.error
+        ? html`<p className="error mono">${market.error}</p>`
+        : html`
+            <div className="stats-grid mono">
+              <div>RSI (now): <strong>${formatMetric(market.currentRsi)}</strong></div>
+              <div>RSI mean 24h: <strong>${formatMetric(market.rsi24hMean)}</strong></div>
+              <div>RSI median 24h: <strong>${formatMetric(market.rsi24hMedian)}</strong></div>
+              <div>RSI high 24h: <strong>${formatMetric(market.rsi24hHigh)}</strong></div>
+              <div>RSI low 24h: <strong>${formatMetric(market.rsi24hLow)}</strong></div>
+              <div>Price 1h %: <strong>${formatPct(market.priceChange1hPct)}</strong></div>
+              <div>Price 24h %: <strong>${formatPct(market.priceChange24hPct)}</strong></div>
+            </div>
+
+            <div className="ohlcv mono">
+              <div className="card-label mono">Latest hourly OHLCV</div>
+              ${market.latestHourlyOhlcv
+                ? html`
+                    <div>
+                      O ${formatPrice(market.latestHourlyOhlcv.open)} • H ${formatPrice(market.latestHourlyOhlcv.high)} •
+                      L ${formatPrice(market.latestHourlyOhlcv.low)} • C ${formatPrice(market.latestHourlyOhlcv.close)} • V
+                      ${formatMetric(market.latestHourlyOhlcv.volume)}
+                    </div>
+                  `
+                : html`<div className="muted">No hourly OHLCV data</div>`}
+            </div>
+
+            <div className="ohlcv mono">
+              <div className="card-label mono">Daily OHLCV (latest)</div>
+              ${market.dailyOhlcv && market.dailyOhlcv.length
+                ? html`
+                    <div>
+                      O ${formatPrice(market.dailyOhlcv.at(-1).open)} • H ${formatPrice(market.dailyOhlcv.at(-1).high)} •
+                      L ${formatPrice(market.dailyOhlcv.at(-1).low)} • C ${formatPrice(market.dailyOhlcv.at(-1).close)} • V
+                      ${formatMetric(market.dailyOhlcv.at(-1).volume)}
+                    </div>
+                  `
+                : html`<div className="muted">No daily OHLCV data</div>`}
+            </div>
+          `}
+    </article>
   `
 }
 
@@ -178,6 +219,34 @@ function CompactToggle() {
   return html`
     <button className="button button-orange" onClick=${() => setDense(!dense)}>Compact</button>
   `
+}
+
+function formatMetric(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return '—'
+  }
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+}
+
+function formatPrice(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return '—'
+  }
+
+  if (Math.abs(value) >= 1000) {
+    return `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+  }
+
+  return `$${value.toLocaleString(undefined, { maximumFractionDigits: 6 })}`
+}
+
+function formatPct(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return '—'
+  }
+
+  const sign = value > 0 ? '+' : ''
+  return `${sign}${value.toFixed(3)}%`
 }
 
 const rootElement = document.getElementById('app')
