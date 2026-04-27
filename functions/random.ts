@@ -1,9 +1,11 @@
-export async function onRequest(context: { request: Request }) {
-  const value = Math.floor(Math.random() * 1000)
-  const payload = { value, generatedAt: new Date().toISOString() }
-  return new Response(JSON.stringify(payload), {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  })
+// Legacy Pages Function preserved to reduce merge conflicts on long-lived branches.
+// Worker-based deployment uses `worker.js` and `/api/markets`.
+export async function onRequest() {
+  return new Response(
+    JSON.stringify({
+      message: 'Use /api/markets from Worker runtime',
+      generatedAt: new Date().toISOString(),
+    }),
+    { headers: { 'Content-Type': 'application/json' } }
+  )
 }

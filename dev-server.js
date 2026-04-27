@@ -5,6 +5,7 @@ const url = require('url')
 
 const port = process.env.PORT ? Number(process.env.PORT) : 5173
 const rootDir = __dirname
+const staticDir = path.join(rootDir, 'public')
 const HYPERLIQUID_API_URL = 'https://api.hyperliquid.xyz/info'
 const RSI_PERIOD = 14
 
@@ -48,9 +49,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   const safePath = pathname === '/' ? '/index.html' : pathname
-  const filePath = path.join(rootDir, decodeURIComponent(safePath))
+  const filePath = path.join(staticDir, decodeURIComponent(safePath))
 
-  if (!filePath.startsWith(rootDir)) {
+  if (!filePath.startsWith(staticDir)) {
     res.writeHead(403)
     res.end('Forbidden')
     return

@@ -25,14 +25,20 @@ This starts `dev-server.js` and exposes `/api/markets`.
 
 ## Cloudflare Workers deployment
 
-### 1) Create KV namespace
+### 1) Create KV namespace (optional but recommended)
 
 ```bash
 npx wrangler kv namespace create MARKET_CACHE
 npx wrangler kv namespace create MARKET_CACHE --preview
 ```
 
-Copy both IDs into `wrangler.jsonc` (`id` and `preview_id`).
+Then add the binding as `MARKET_CACHE` in one of these ways:
+
+- **Cloudflare dashboard (recommended for CI-connected builds):**
+  - Worker → Settings → Bindings → KV Namespace
+  - Binding name: `MARKET_CACHE`
+- **or CLI/local config:**
+  - add `kv_namespaces` in `wrangler.jsonc` (or environment-specific config) using the generated IDs.
 
 ### 2) Run worker locally
 
@@ -49,7 +55,7 @@ npm run deploy
 ## Pre-deploy sanity checks
 
 ```bash
-node --check app/main.js
+node --check public/app/main.js
 node --check dev-server.js
 node --check worker.js
 ```
@@ -62,3 +68,7 @@ The worker includes:
 - `scheduled()` handler that refreshes market snapshot every hour and writes to KV.
 
 `/api/markets` returns cached snapshot and can be forced with `?refresh=1`.
+
+## Static assets
+
+- Worker uploads frontend assets from `./public` only (prevents uploading repo internals like `.git`).
