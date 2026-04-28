@@ -19,7 +19,7 @@ Multi-strategy signal dashboard built for **Cloudflare Workers** with hourly Hyp
 ## Config
 
 - Strategy/regime thresholds are documented in `signal-engine-config.yml`.
-- Worker currently embeds the same YAML text as runtime config, keeping thresholds centralized and easy to tune.
+- Worker runtime currently uses an equivalent in-code config object; keep it aligned with this YAML file when tuning thresholds.
 
 ## Local development
 

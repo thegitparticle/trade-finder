@@ -2,71 +2,69 @@ const HYPERLIQUID_API_URL = 'https://api.hyperliquid.xyz/info'
 const SNAPSHOT_KV_KEY = 'signal-engine-snapshot-v1'
 const ACTIVE_SIGNAL_PREFIX = 'active-signal-v1'
 
-const SIGNAL_ENGINE_CONFIG_YAML = `
-universe:
-  - ETH
-  - BTC
-  - SOL
-  - DOGE
-  - PEPE
-  - XRP
-
-timeframes:
-  base: 1h
-  context: 4h
-  htf: 1d
-
-lookbacks:
-  base_bars: 320
-  context_bars: 220
-  htf_bars: 140
-
-regime:
-  trending:
-    adx_min: 25
-    ema200_slope_min: 0.02
-  squeeze:
-    adx_max: 20
-    bbw_pct_of_median: 0.7
-    min_squeeze_bars: 12
-  ranging:
-    adx_max: 20
-    ema200_slope_max: 0.005
-
-strategies:
-  tfp:
-    rsi_pullback_zone_low: 40
-    rsi_pullback_zone_high: 50
-    pullback_tolerance_atr: 0.5
-    sl_atr_multiplier: 1.8
-    tp1_r_multiple: 2
-  tbo:
-    breakout_atr_buffer: 0.3
-    volume_spike_min: 1.8
-    rsi_long_threshold: 60
-    rsi_short_threshold: 40
-    retest_window_bars: 6
-    sl_buffer_atr: 0.5
-  mre:
-    rsi_oversold: 30
-    rsi_overbought: 70
-    bb_std: 2
-    divergence_lookback: 15
-    volume_spike_min: 1.5
-    sl_atr_multiplier: 1
-
-confidence:
-  suppress_below: 60
-  watchlist: 60
-  actionable: 75
-  high_conviction: 90
-
-signal:
-  expiry_bars: 3
-  stale_candle_minutes: 90
-`
-
-const ENGINE_CONFIG = parseSimpleYaml(SIGNAL_ENGINE_CONFIG_YAML)
+const ENGINE_CONFIG = {
+  universe: ['ETH', 'BTC', 'SOL', 'DOGE', 'PEPE', 'XRP'],
+  timeframes: {
+    base: '1h',
+    context: '4h',
+    htf: '1d',
+  },
+  lookbacks: {
+    base_bars: 320,
+    context_bars: 220,
+    htf_bars: 140,
+  },
+  regime: {
+    trending: {
+      adx_min: 25,
+      ema200_slope_min: 0.02,
+    },
+    squeeze: {
+      adx_max: 20,
+      bbw_pct_of_median: 0.7,
+      min_squeeze_bars: 12,
+    },
+    ranging: {
+      adx_max: 20,
+      ema200_slope_max: 0.005,
+    },
+  },
+  strategies: {
+    tfp: {
+      rsi_pullback_zone_low: 40,
+      rsi_pullback_zone_high: 50,
+      pullback_tolerance_atr: 0.5,
+      sl_atr_multiplier: 1.8,
+      tp1_r_multiple: 2,
+    },
+    tbo: {
+      breakout_atr_buffer: 0.3,
+      volume_spike_min: 1.8,
+      rsi_long_threshold: 60,
+      rsi_short_threshold: 40,
+      retest_window_bars: 6,
+      sl_buffer_atr: 0.5,
+    },
+    mre: {
+      rsi_oversold: 30,
+      rsi_overbought: 70,
+      bb_std: 2,
+      divergence_lookback: 15,
+      volume_spike_min: 1.5,
+      sl_atr_multiplier: 1,
+    },
+  },
+  confidence: {
+    suppress_below: 60,
+    watchlist: 60,
+    actionable: 75,
+    high_conviction: 90,
+  },
+  signal: {
+    expiry_bars: 3,
+    stale_candle_minutes: 90,
+  },
+}
 
 export default {
   async fetch(request, env) {
@@ -1012,57 +1010,6 @@ function intervalToMs(interval) {
   if (interval === '4h') return 4 * 60 * 60 * 1000
   if (interval === '1d') return 24 * 60 * 60 * 1000
   throw new Error(`Unsupported interval ${interval}`)
-}
-
-function parseSimpleYaml(yaml) {
-  const lines = yaml
-    .split('\n')
-    .map((line) => line.replace(/\t/g, '    '))
-    .filter((line) => line.trim().length && !line.trim().startsWith('#'))
-
-  const root = {}
-  const stack = [{ indent: -1, value: root, key: null }]
-
-  for (const rawLine of lines) {
-    const indent = rawLine.match(/^\s*/)[0].length
-    const line = rawLine.trim()
-
-    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
-      stack.pop()
-    }
-
-    const parent = stack[stack.length - 1]
-
-    if (line.startsWith('- ')) {
-      const item = parseYamlValue(line.slice(2).trim())
-      if (!Array.isArray(parent.value[parent.key])) {
-        parent.value[parent.key] = []
-      }
-      parent.value[parent.key].push(item)
-      continue
-    }
-
-    const [keyPart, ...rest] = line.split(':')
-    const key = keyPart.trim()
-    const valueText = rest.join(':').trim()
-
-    if (!valueText) {
-      parent.value[key] = {}
-      stack.push({ indent, value: parent.value, key })
-    } else {
-      parent.value[key] = parseYamlValue(valueText)
-      stack.push({ indent, value: parent.value[key], key: null })
-    }
-  }
-
-  return root
-}
-
-function parseYamlValue(text) {
-  if (text === 'true') return true
-  if (text === 'false') return false
-  if (!Number.isNaN(Number(text))) return Number(text)
-  return text
 }
 
 function lastFinite(values) {
