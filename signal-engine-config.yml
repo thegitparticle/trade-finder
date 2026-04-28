@@ -1,0 +1,63 @@
+universe:
+  - ETH
+  - BTC
+  - SOL
+  - DOGE
+  - PEPE
+  - XRP
+
+timeframes:
+  base: 1h
+  context: 4h
+  htf: 1d
+
+lookbacks:
+  base_bars: 320
+  context_bars: 220
+  htf_bars: 140
+
+regime:
+  trending:
+    adx_min: 25
+    ema200_slope_min: 0.02
+  squeeze:
+    adx_max: 20
+    bbw_pct_of_median: 0.7
+    min_squeeze_bars: 12
+  ranging:
+    adx_max: 20
+    ema200_slope_max: 0.005
+
+strategies:
+  tfp:
+    rsi_pullback_zone_low: 40
+    rsi_pullback_zone_high: 50
+    pullback_tolerance_atr: 0.5
+    sl_atr_multiplier: 1.8
+    tp1_r_multiple: 2.0
+
+  tbo:
+    breakout_atr_buffer: 0.3
+    volume_spike_min: 1.8
+    rsi_long_threshold: 60
+    rsi_short_threshold: 40
+    retest_window_bars: 6
+    sl_buffer_atr: 0.5
+
+  mre:
+    rsi_oversold: 30
+    rsi_overbought: 70
+    bb_std: 2.0
+    divergence_lookback: 15
+    volume_spike_min: 1.5
+    sl_atr_multiplier: 1.0
+
+confidence:
+  suppress_below: 60
+  watchlist: 60
+  actionable: 75
+  high_conviction: 90
+
+signal:
+  expiry_bars: 3
+  stale_candle_minutes: 90
