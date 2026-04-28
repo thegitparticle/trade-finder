@@ -9,20 +9,15 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const lastUpdated = useMemo(() => {
-    return snapshot?.generatedAt ? new Date(snapshot.generatedAt).toLocaleString() : '—'
-  }, [snapshot])
+  const lastUpdated = useMemo(() => (snapshot?.generatedAt ? new Date(snapshot.generatedAt).toLocaleString() : '—'), [snapshot])
 
   const refreshData = async (force = false) => {
     setLoading(true)
     setError('')
     try {
       const response = await fetch(`/api/markets${force ? '?refresh=1' : ''}`)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch market snapshot: ${response.status}`)
-      }
-      const json = await response.json()
-      setSnapshot(json)
+      if (!response.ok) throw new Error(`Failed to fetch market snapshot: ${response.status}`)
+      setSnapshot(await response.json())
     } catch (fetchError) {
       console.error(fetchError)
       setError(fetchError instanceof Error ? fetchError.message : 'Unknown fetch error')
@@ -35,7 +30,7 @@ function App() {
     refreshData()
   }, [])
 
-  const liveSignals = snapshot?.liveTradeFinder || []
+  const signals = snapshot?.signals || []
   const markets = snapshot?.markets || []
 
   return html`
@@ -44,14 +39,14 @@ function App() {
       <main className="container">
         <div className="page-header">
           <p className="muted mono">Last updated: ${lastUpdated}</p>
-          <p className="muted mono">Schedule: ${snapshot?.schedule || '0 * * * *'} (hourly cron)</p>
+          <p className="muted mono">Schedule: ${snapshot?.schedule || '5 * * * *'} (hourly cron + buffer)</p>
         </div>
 
         <section className="card">
           <div className="card-actions spread">
             <div>
-              <div className="card-label mono">Live Trade Finder</div>
-              <div className="muted mono">Markets with RSI ≤ 25 on 1h candles</div>
+              <div className="card-label mono">Multi-Strategy Signals</div>
+              <div className="muted mono">Regime-routed TFP/TBO/MRE signals (confidence ≥ ${snapshot?.config?.suppressBelow ?? 60})</div>
             </div>
             <button className="button button-orange" onClick=${() => refreshData(true)}>
               ${loading ? 'Refreshing...' : 'Refresh now'}
@@ -59,23 +54,25 @@ function App() {
           </div>
           ${error
             ? html`<p className="error mono">${error}</p>`
-            : liveSignals.length
+            : signals.length
               ? html`
                   <div className="signal-list">
-                    ${liveSignals.map(
+                    ${signals.map(
                       (signal) => html`
                         <div className="signal-item">
-                          <div className="signal-title mono">${signal.id}</div>
-                          <div className="signal-value">RSI ${formatMetric(signal.currentRsi)}</div>
+                          <div className="signal-title mono">${signal.token} • ${signal.strategy} • ${signal.side}</div>
+                          <div className="signal-value">${signal.tier} • Confidence ${signal.confidence}</div>
                           <div className="muted mono">
-                            Price ${formatPrice(signal.currentPrice)} • 24h ${formatPct(signal.priceChange24hPct)}
+                            Entry ${formatPrice(signal.entry?.trigger_price)} • SL ${formatPrice(signal.invalidation?.stop_loss)} •
+                            TP1 ${formatPrice(signal.targets?.tp1)}
                           </div>
+                          <div className="muted mono">Expires: ${formatTimestamp(signal.expires_at)} • Regime: ${signal.regime}</div>
                         </div>
                       `
                     )}
                   </div>
                 `
-              : html`<p className="muted mono">No live RSI opportunities ≤ 25 right now.</p>`}
+              : html`<p className="muted mono">No surfaced signals this scan cycle.</p>`}
         </section>
 
         <section className="grid market-grid">
@@ -92,8 +89,8 @@ function Header() {
     <header className="header">
       <div className="container header-inner">
         <div className="brand">
-          <h1>Market Monitor</h1>
-          <span className="muted mono">Hyperliquid • Hourly scan • Cloudflare Workers</span>
+          <h1>Signal Engine Monitor</h1>
+          <span className="muted mono">Hyperliquid • Multi-strategy • Cloudflare Workers</span>
         </div>
         <div className="controls">
           <${ThemeToggle} />
@@ -108,7 +105,7 @@ function Footer() {
   return html`
     <footer className="footer">
       <div className="container">
-        <p className="muted mono">Cloudflare Worker + hourly cron + KV cache snapshot</p>
+        <p className="muted mono">Signals include confidence, invalidation, targets, and expiry.</p>
       </div>
     </footer>
   `
@@ -119,49 +116,22 @@ function MarketCard({ market }) {
     <article className="card market-card">
       <div className="card-actions spread">
         <div>
-          <div className="card-label mono">${market.label}</div>
-          <div className="card-value">${market.id}</div>
+          <div className="card-label mono">${market.id}</div>
+          <div className="card-value">Regime ${market.regime || '—'}</div>
         </div>
-        <div className="price mono">${formatPrice(market.currentPrice)}</div>
+        <div className="price mono">ADX4h ${formatMetric(market.indicators?.adx4h)}</div>
       </div>
 
       ${market.error
         ? html`<p className="error mono">${market.error}</p>`
         : html`
             <div className="stats-grid mono">
-              <div>RSI (now): <strong>${formatMetric(market.currentRsi)}</strong></div>
-              <div>RSI mean 24h: <strong>${formatMetric(market.rsi24hMean)}</strong></div>
-              <div>RSI median 24h: <strong>${formatMetric(market.rsi24hMedian)}</strong></div>
-              <div>RSI high 24h: <strong>${formatMetric(market.rsi24hHigh)}</strong></div>
-              <div>RSI low 24h: <strong>${formatMetric(market.rsi24hLow)}</strong></div>
-              <div>Price 1h %: <strong>${formatPct(market.priceChange1hPct)}</strong></div>
-              <div>Price 24h %: <strong>${formatPct(market.priceChange24hPct)}</strong></div>
-            </div>
-
-            <div className="ohlcv mono">
-              <div className="card-label mono">Latest hourly OHLCV</div>
-              ${market.latestHourlyOhlcv
-                ? html`
-                    <div>
-                      O ${formatPrice(market.latestHourlyOhlcv.open)} • H ${formatPrice(market.latestHourlyOhlcv.high)} •
-                      L ${formatPrice(market.latestHourlyOhlcv.low)} • C ${formatPrice(market.latestHourlyOhlcv.close)} • V
-                      ${formatMetric(market.latestHourlyOhlcv.volume)}
-                    </div>
-                  `
-                : html`<div className="muted">No hourly OHLCV data</div>`}
-            </div>
-
-            <div className="ohlcv mono">
-              <div className="card-label mono">Daily OHLCV (latest)</div>
-              ${market.dailyOhlcv && market.dailyOhlcv.length
-                ? html`
-                    <div>
-                      O ${formatPrice(market.dailyOhlcv.at(-1).open)} • H ${formatPrice(market.dailyOhlcv.at(-1).high)} •
-                      L ${formatPrice(market.dailyOhlcv.at(-1).low)} • C ${formatPrice(market.dailyOhlcv.at(-1).close)} • V
-                      ${formatMetric(market.dailyOhlcv.at(-1).volume)}
-                    </div>
-                  `
-                : html`<div className="muted">No daily OHLCV data</div>`}
+              <div>EMA200 slope 4h: <strong>${formatMetric(market.indicators?.ema200Slope4h)}</strong></div>
+              <div>BBW 4h: <strong>${formatMetric(market.indicators?.bbw4h)}</strong></div>
+              <div>BBW median 30: <strong>${formatMetric(market.indicators?.bbw4hMedian30)}</strong></div>
+              <div>Candidate: <strong>${market.signalCandidate ? `${market.signalCandidate.strategy || 'N/A'} ${market.signalCandidate.side || ''}` : 'None'}</strong></div>
+              <div>Candidate confidence: <strong>${formatMetric(market.signalCandidate?.confidence)}</strong></div>
+              <div>Suppressed: <strong>${market.signalSuppressed ? 'Yes' : 'No'}</strong></div>
             </div>
           `}
     </article>
@@ -188,11 +158,7 @@ function ThemeToggle() {
     }
   }, [theme])
 
-  return html`
-    <button className="button button-green" onClick=${() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-      Toggle Theme
-    </button>
-  `
+  return html`<button className="button button-green" onClick=${() => setTheme(theme === 'light' ? 'dark' : 'light')}>Toggle Theme</button>`
 }
 
 function CompactToggle() {
@@ -215,44 +181,27 @@ function CompactToggle() {
     }
   }, [dense])
 
-  return html`
-    <button className="button button-orange" onClick=${() => setDense(!dense)}>Compact</button>
-  `
+  return html`<button className="button button-orange" onClick=${() => setDense(!dense)}>Compact</button>`
 }
 
 function formatMetric(value) {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return '—'
-  }
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
+  return value.toLocaleString(undefined, { maximumFractionDigits: 4 })
 }
 
 function formatPrice(value) {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return '—'
-  }
-
-  if (Math.abs(value) >= 1000) {
-    return `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-  }
-
+  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
+  if (Math.abs(value) >= 1000) return `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
   return `$${value.toLocaleString(undefined, { maximumFractionDigits: 6 })}`
 }
 
-function formatPct(value) {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return '—'
-  }
-
-  const sign = value > 0 ? '+' : ''
-  return `${sign}${value.toFixed(3)}%`
+function formatTimestamp(value) {
+  if (!value) return '—'
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString()
 }
 
 const rootElement = document.getElementById('app')
+if (!rootElement) throw new Error('Root element #app not found')
 
-if (!rootElement) {
-  throw new Error('Root element #app not found')
-}
-
-const root = createRoot(rootElement)
-root.render(html`<${App} />`)
+createRoot(rootElement).render(html`<${App} />`)

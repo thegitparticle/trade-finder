@@ -1,19 +1,25 @@
-# dashboard-boilerplate
+# trade-finder
 
-RSI trade dashboard built on top of the boilerplate design system. The app is deployment-ready for **Cloudflare Workers** with hourly cron ingestion.
+Multi-strategy signal dashboard built for **Cloudflare Workers** with hourly Hyperliquid ingestion.
 
 ## What it does
 
-- Pulls hourly and daily candle data from Hyperliquid for: **BTC, ETH, SOL, HYPE, BNB, BRENTOIL-USDC, SILVER-USDC, GOLD-USDC**.
-  - Commodity markets use fallback symbol probing (`BRENTOIL-USDC|CI|WTI|USOIL`, `SILVER-USDC|SILVER|XAG`, `GOLD-USDC|GOLD|XAU`) to reduce deploy-time symbol mismatch risk.
-- Computes RSI(14) on hourly closes.
-- Generates hourly snapshot analytics:
-  - current RSI
-  - 24h RSI mean/median/high/low
-  - 1h and 24h price % moves
-  - latest hourly OHLCV
-  - latest daily OHLCV
-- Shows **Live Trade Finder** section for any market where live RSI <= 25.
+- Scans a fixed 6-token universe: **ETH, BTC, SOL, DOGE, PEPE, XRP**.
+- Fetches **1h / 4h / 1d** OHLCV candles from Hyperliquid.
+- Classifies each token into one regime every hour:
+  - `TRENDING` → Trend-Following Pullback (TFP)
+  - `SQUEEZE` → Trend Breakout (TBO)
+  - `RANGING` → Mean Reversion Extremes (MRE)
+  - `TRANSITIONAL` → no strategy fired
+- Evaluates only the strategy allowed by the active regime.
+- Scores setup confidence from **0–100** and suppresses low-confidence candidates (< 60).
+- Produces signal payloads with entry zone, invalidation, targets, risk parameters, context, and score breakdown.
+- Stores active signal dedup state and snapshot data in KV (`MARKET_CACHE`) when available.
+
+## Config
+
+- Strategy/regime thresholds are documented in `signal-engine-config.yml`.
+- Worker runtime currently uses an equivalent in-code config object; keep it aligned with this YAML file when tuning thresholds.
 
 ## Local development
 
@@ -32,13 +38,7 @@ npx wrangler kv namespace create MARKET_CACHE
 npx wrangler kv namespace create MARKET_CACHE --preview
 ```
 
-Then add the binding as `MARKET_CACHE` in one of these ways:
-
-- **Cloudflare dashboard (recommended for CI-connected builds):**
-  - Worker → Settings → Bindings → KV Namespace
-  - Binding name: `MARKET_CACHE`
-- **or CLI/local config:**
-  - add `kv_namespaces` in `wrangler.jsonc` (or environment-specific config) using the generated IDs.
+Then bind the namespace as `MARKET_CACHE`.
 
 ### 2) Run worker locally
 
@@ -62,13 +62,7 @@ node --check worker.js
 
 ## Cron schedule
 
-The worker includes:
+- `triggers.crons = ["5 * * * *"]`
+- `scheduled()` refreshes the signal snapshot each hour after the 1h candle close buffer.
 
-- `triggers.crons = ["0 * * * *"]`
-- `scheduled()` handler that refreshes market snapshot every hour and writes to KV.
-
-`/api/markets` returns cached snapshot and can be forced with `?refresh=1`.
-
-## Static assets
-
-- Worker uploads frontend assets from `./public` only (prevents uploading repo internals like `.git`).
+`/api/markets` returns cached snapshot and supports force refresh with `?refresh=1`.
