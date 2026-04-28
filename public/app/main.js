@@ -40,7 +40,6 @@ function App() {
 
   return html`
     <div className="page">
-      <div className="scanline" aria-hidden="true"></div>
       <${Header} />
       <main className="container">
         <div className="page-header">

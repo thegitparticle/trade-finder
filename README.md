@@ -4,8 +4,8 @@ RSI trade dashboard built on top of the boilerplate design system. The app is de
 
 ## What it does
 
-- Pulls hourly and daily candle data from Hyperliquid for: **BTC, ETH, SOL, HYPE, BNB, CI, SILVER, GOLD**.
-  - Commodity markets use fallback symbol probing (`CI|WTI|USOIL`, `SILVER|XAG`, `GOLD|XAU`) to reduce deploy-time symbol mismatch risk.
+- Pulls hourly and daily candle data from Hyperliquid for: **BTC, ETH, SOL, HYPE, BNB, BRENTOIL-USDC, SILVER-USDC, GOLD-USDC**.
+  - Commodity markets use fallback symbol probing (`BRENTOIL-USDC|CI|WTI|USOIL`, `SILVER-USDC|SILVER|XAG`, `GOLD-USDC|GOLD|XAU`) to reduce deploy-time symbol mismatch risk.
 - Computes RSI(14) on hourly closes.
 - Generates hourly snapshot analytics:
   - current RSI

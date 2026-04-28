@@ -10,9 +10,9 @@ const MARKETS = [
   { id: 'SOL', coins: ['SOL'], label: 'Solana' },
   { id: 'HYPE', coins: ['HYPE'], label: 'Hyperliquid' },
   { id: 'BNB', coins: ['BNB'], label: 'BNB' },
-  { id: 'CI', coins: ['CI', 'WTI', 'USOIL'], label: 'Crude Oil' },
-  { id: 'SILVER', coins: ['SILVER', 'XAG'], label: 'Silver' },
-  { id: 'GOLD', coins: ['GOLD', 'XAU'], label: 'Gold' },
+  { id: 'BRENTOIL-USDC', coins: ['BRENTOIL-USDC', 'CI', 'WTI', 'USOIL'], label: 'Crude Oil' },
+  { id: 'SILVER-USDC', coins: ['SILVER-USDC', 'SILVER', 'XAG'], label: 'Silver' },
+  { id: 'GOLD-USDC', coins: ['GOLD-USDC', 'GOLD', 'XAU'], label: 'Gold' },
 ]
 
 export default {
