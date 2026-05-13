@@ -169,6 +169,16 @@ async function updateHistory(env, snapshot) {
       actionable: snapshot.markets.filter((m) => typeof m.signalCandidate?.confidence === 'number' && m.signalCandidate.confidence >= ENGINE_CONFIG.confidence.actionable && !m.signalSuppressed).length,
       watchlist: snapshot.markets.filter((m) => typeof m.signalCandidate?.confidence === 'number' && m.signalCandidate.confidence >= ENGINE_CONFIG.confidence.watchlist && m.signalCandidate.confidence < ENGINE_CONFIG.confidence.actionable && !m.signalSuppressed).length,
       suppressed: snapshot.markets.filter((m) => m.signalSuppressed).length,
+      perToken: ENGINE_CONFIG.universe.reduce((acc, token) => {
+        const tokenSignals = snapshot.signals.filter((signal) => signal.token === token)
+        const bestConfidence = tokenSignals.reduce((max, signal) => Math.max(max, signal.confidence || 0), 0)
+        acc[token] = {
+          surfaced: tokenSignals.length,
+          actionable: tokenSignals.some((signal) => (signal.confidence || 0) >= ENGINE_CONFIG.confidence.actionable) ? 1 : 0,
+          bestConfidence,
+        }
+        return acc
+      }, {}),
     })
   if (env.MARKET_CACHE) {
     await env.MARKET_CACHE.put(SNAPSHOT_HISTORY_KV_KEY, JSON.stringify(history), {

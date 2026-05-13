@@ -38,4 +38,6 @@
 .mini-chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:.85rem}
 .mini-bars{display:grid;grid-template-columns:repeat(auto-fit,minmax(6px,1fr));align-items:end;gap:2px;height:90px}
 .mini-bar{background:linear-gradient(180deg,var(--brand-orange),#f97316);border-radius:2px 2px 0 0;min-height:6px}
+.mini-bars-secondary{height:24px;margin-top:4px}
+.mini-bar-secondary{background:linear-gradient(180deg,var(--brand-green),#10b981)}
 .footer{border-top:1px solid var(--card-border);margin-top:24px}.footer .container{padding:16px 0}

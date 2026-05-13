@@ -67,7 +67,7 @@ function App() {
       <${Header} />
       <main className="container">
         <${SummaryBar} summary=${summary} lastUpdated=${lastUpdated} schedule=${snapshot?.schedule || '5 * * * *'} />
-        <${HistoryCharts} history=${history} />
+        <${HistoryCharts} history=${history} markets=${markets} />
 
         <section className="card">
           <div className="card-actions spread">
@@ -142,7 +142,7 @@ function SummaryBar({ summary, lastUpdated, schedule }) {
   </section>`
 }
 
-function HistoryCharts({ history }) {
+function HistoryCharts({ history, markets }) {
   if (!history.length) {
     return html`<section className="card"><div className="card-label mono">Last 48h charts</div><p className="muted">History will populate after scheduled scans or manual refreshes.</p></section>`
   }
@@ -164,17 +164,31 @@ function HistoryCharts({ history }) {
     <div className="chart-grid">
       ${series.map((s) => html`<${MiniChart} key=${s.key} label=${s.label} points=${history.map((h) => ({ x: h.timestamp, y: h[s.key] ?? 0 }))} />`)}
     </div>
+    <div className="card-label mono" style=${{ marginTop: '1rem' }}>Per-ticker signal timeline</div>
+    <div className="muted">Shows when each tracked ticker had surfaced/actionable calls in the scan history.</div>
+    <div className="chart-grid">
+      ${markets.map((market) => {
+        const points = history.map((h) => ({ x: h.timestamp, y: h.perToken?.[market.id]?.surfaced ?? 0 }))
+        const actionablePoints = history.map((h) => ({ x: h.timestamp, y: h.perToken?.[market.id]?.actionable ?? 0 }))
+        const lastSignal = [...history].reverse().find((h) => (h.perToken?.[market.id]?.surfaced ?? 0) > 0)
+        return html`<${MiniChart} key=${market.id} label=${`${market.id} surfaced`} points=${points} secondaryPoints=${actionablePoints} note=${lastSignal ? `Last surfaced ${new Date(lastSignal.timestamp).toLocaleString()}` : 'No surfaced call in visible window'} />`
+      })}
+    </div>
   </section>`
 }
 
-function MiniChart({ label, points }) {
+function MiniChart({ label, points, secondaryPoints, note }) {
   const max = Math.max(1, ...points.map((p) => p.y))
   const last = points.at(-1)?.y ?? 0
   return html`<article className="mini-chart">
     <div className="mini-chart-head"><strong>${label}</strong><span className="mono">${last}</span></div>
+    ${note ? html`<div className="muted mono">${note}</div>` : null}
     <div className="mini-bars">
       ${points.map((point) => html`<div className="mini-bar" title=${`${new Date(point.x).toLocaleString()} • ${point.y}`} style=${{ height: `${Math.max(6, (point.y / max) * 100)}%` }}></div>`)}
     </div>
+    ${secondaryPoints ? html`<div className="mini-bars mini-bars-secondary">
+      ${secondaryPoints.map((point) => html`<div className="mini-bar mini-bar-secondary" title=${`Actionable ${new Date(point.x).toLocaleString()} • ${point.y}`} style=${{ height: `${Math.max(6, point.y ? 100 : 6)}%` }}></div>`)}
+    </div>` : null}
   </article>`
 }
 
