@@ -4,6 +4,7 @@ const path = require('path')
 const url = require('url')
 
 const port = process.env.PORT ? Number(process.env.PORT) : 5173
+const host = process.env.HOST || '0.0.0.0'
 const rootDir = __dirname
 const staticDir = path.join(rootDir, 'public')
 const HYPERLIQUID_API_URL = 'https://api.hyperliquid.xyz/info'
@@ -70,8 +71,16 @@ const server = http.createServer(async (req, res) => {
   })
 })
 
-server.listen(port, () => {
-  console.log(`Dev server running at http://localhost:${port}`)
+server.listen(port, host, () => {
+  const loopbackHost = host === '0.0.0.0' ? '127.0.0.1' : host
+  console.log(`Dev server running at:`)
+  console.log(`  - http://localhost:${port}`)
+  console.log(`  - http://${loopbackHost}:${port}`)
+})
+
+server.on('error', (error) => {
+  console.error('Dev server failed to start:', error)
+  process.exitCode = 1
 })
 
 async function buildSnapshot() {
