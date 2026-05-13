@@ -27,7 +27,17 @@ Multi-strategy signal dashboard built for **Cloudflare Workers** with hourly Hyp
 npm run dev
 ```
 
-This starts `dev-server.js` and exposes `/api/markets`.
+This starts `dev-server.js` and exposes `/api/markets` on port `5173` by default.
+
+Open one of:
+- `http://localhost:5173`
+- `http://127.0.0.1:5173`
+
+If you still see `127.0.0.1 refused to connect`, verify the server process is running and restart with:
+
+```bash
+npm run dev
+```
 
 ## Cloudflare Workers deployment
 
