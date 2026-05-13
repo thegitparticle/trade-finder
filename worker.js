@@ -3,6 +3,7 @@ const SNAPSHOT_KV_KEY = 'signal-engine-snapshot-v1'
 const SNAPSHOT_HISTORY_KV_KEY = 'signal-engine-history-v1'
 const ACTIVE_SIGNAL_PREFIX = 'active-signal-v1'
 const HISTORY_WINDOW_MS = 48 * 60 * 60 * 1000
+let inMemoryHistory = []
 
 const ENGINE_CONFIG = {
   universe: ['ETH', 'BTC', 'SOL', 'DOGE', 'PEPE', 'XRP'],
@@ -128,9 +129,10 @@ async function refreshAndPersistSnapshot(env) {
     markets: scan.markets,
   }
 
+  const history = await updateHistory(env, snapshot)
+  snapshot.history = history
+
   if (env.MARKET_CACHE) {
-    const history = await updateHistory(env, snapshot)
-    snapshot.history = history
     await env.MARKET_CACHE.put(SNAPSHOT_KV_KEY, JSON.stringify(snapshot), {
       expirationTtl: 60 * 60 * 6,
     })
@@ -140,16 +142,23 @@ async function refreshAndPersistSnapshot(env) {
 }
 
 async function getHistory(env) {
-  if (!env.MARKET_CACHE) return []
-  const history = (await env.MARKET_CACHE.get(SNAPSHOT_HISTORY_KV_KEY, 'json')) || []
   const cutoff = Date.now() - HISTORY_WINDOW_MS
+
+  if (!env.MARKET_CACHE) {
+    inMemoryHistory = inMemoryHistory.filter((entry) => entry.timestamp >= cutoff)
+    return inMemoryHistory
+  }
+
+  const history = (await env.MARKET_CACHE.get(SNAPSHOT_HISTORY_KV_KEY, 'json')) || []
   return history.filter((entry) => entry.timestamp >= cutoff)
 }
 
 async function updateHistory(env, snapshot) {
   const now = Date.parse(snapshot.generatedAt)
   const cutoff = now - HISTORY_WINDOW_MS
-  const existing = (await env.MARKET_CACHE.get(SNAPSHOT_HISTORY_KV_KEY, 'json')) || []
+  const existing = env.MARKET_CACHE
+    ? ((await env.MARKET_CACHE.get(SNAPSHOT_HISTORY_KV_KEY, 'json')) || [])
+    : inMemoryHistory
   const history = existing
     .filter((entry) => entry.timestamp >= cutoff)
     .concat({
@@ -160,10 +169,25 @@ async function updateHistory(env, snapshot) {
       actionable: snapshot.markets.filter((m) => typeof m.signalCandidate?.confidence === 'number' && m.signalCandidate.confidence >= ENGINE_CONFIG.confidence.actionable && !m.signalSuppressed).length,
       watchlist: snapshot.markets.filter((m) => typeof m.signalCandidate?.confidence === 'number' && m.signalCandidate.confidence >= ENGINE_CONFIG.confidence.watchlist && m.signalCandidate.confidence < ENGINE_CONFIG.confidence.actionable && !m.signalSuppressed).length,
       suppressed: snapshot.markets.filter((m) => m.signalSuppressed).length,
+      perToken: ENGINE_CONFIG.universe.reduce((acc, token) => {
+        const tokenSignals = snapshot.signals.filter((signal) => signal.token === token)
+        const bestConfidence = tokenSignals.reduce((max, signal) => Math.max(max, signal.confidence || 0), 0)
+        acc[token] = {
+          surfaced: tokenSignals.length,
+          actionable: tokenSignals.some((signal) => (signal.confidence || 0) >= ENGINE_CONFIG.confidence.actionable) ? 1 : 0,
+          bestConfidence,
+        }
+        return acc
+      }, {}),
     })
-  await env.MARKET_CACHE.put(SNAPSHOT_HISTORY_KV_KEY, JSON.stringify(history), {
-    expirationTtl: 60 * 60 * 72,
-  })
+  if (env.MARKET_CACHE) {
+    await env.MARKET_CACHE.put(SNAPSHOT_HISTORY_KV_KEY, JSON.stringify(history), {
+      expirationTtl: 60 * 60 * 72,
+    })
+  } else {
+    inMemoryHistory = history
+  }
+
   return history
 }
 
