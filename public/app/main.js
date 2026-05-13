@@ -39,6 +39,7 @@ function App() {
 
   const signals = snapshot?.signals || []
   const markets = snapshot?.markets || []
+  const history = snapshot?.history || []
   const suppressBelow = snapshot?.config?.suppressBelow ?? 60
 
   const summary = useMemo(() => {
@@ -66,6 +67,7 @@ function App() {
       <${Header} />
       <main className="container">
         <${SummaryBar} summary=${summary} lastUpdated=${lastUpdated} schedule=${snapshot?.schedule || '5 * * * *'} />
+        <${HistoryCharts} history=${history} />
 
         <section className="card">
           <div className="card-actions spread">
@@ -138,6 +140,42 @@ function SummaryBar({ summary, lastUpdated, schedule }) {
     <div className="summary-item"><span>Transitional</span><strong>${summary.transitional || 0}</strong></div>
     <div className="summary-item wide"><span>Updated</span><strong>${lastUpdated}</strong><small className="muted mono">Schedule ${schedule}</small></div>
   </section>`
+}
+
+function HistoryCharts({ history }) {
+  if (!history.length) {
+    return html`<section className="card"><div className="card-label mono">Last 48h charts</div><p className="muted">History will populate after scheduled scans or manual refreshes.</p></section>`
+  }
+  const series = [
+    { key: 'surfaced', label: 'Surfaced signals' },
+    { key: 'actionable', label: 'Actionable' },
+    { key: 'watchlist', label: 'Watchlist' },
+    { key: 'suppressed', label: 'Suppressed' },
+    { key: 'transitional', label: 'Transitional' },
+  ]
+  return html`<section className="card">
+    <div className="card-actions spread">
+      <div>
+        <div className="card-label mono">Last 48h charts</div>
+        <div className="muted">Hourly snapshots only. Older points are auto-pruned.</div>
+      </div>
+      <div className="muted mono">${history.length} points</div>
+    </div>
+    <div className="chart-grid">
+      ${series.map((s) => html`<${MiniChart} key=${s.key} label=${s.label} points=${history.map((h) => ({ x: h.timestamp, y: h[s.key] ?? 0 }))} />`)}
+    </div>
+  </section>`
+}
+
+function MiniChart({ label, points }) {
+  const max = Math.max(1, ...points.map((p) => p.y))
+  const last = points.at(-1)?.y ?? 0
+  return html`<article className="mini-chart">
+    <div className="mini-chart-head"><strong>${label}</strong><span className="mono">${last}</span></div>
+    <div className="mini-bars">
+      ${points.map((point) => html`<div className="mini-bar" title=${`${new Date(point.x).toLocaleString()} • ${point.y}`} style=${{ height: `${Math.max(6, (point.y / max) * 100)}%` }}></div>`)}
+    </div>
+  </article>`
 }
 
 function Header() { return html`<header className="header"><div className="container header-inner"><div className="brand"><h1>Signal Engine Monitor</h1><span className="muted">Understand market state first, then review trade details.</span></div><div className="controls"><${ThemeToggle} /><${CompactToggle} /></div></div></header>` }

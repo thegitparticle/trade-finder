@@ -33,4 +33,9 @@
 .tech-details{margin-top:8px;border-top:1px dashed var(--card-border);padding-top:8px;display:grid;gap:4px;font-size:.82rem}
 .controls-row{display:flex;align-items:center;gap:8px} select{padding:6px;border:1px solid var(--card-border);background:var(--bg);color:var(--text)}
 .glossary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px;font-size:.92rem}
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px}
+.mini-chart{border:1px solid var(--card-border);padding:10px}
+.mini-chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:.85rem}
+.mini-bars{display:grid;grid-template-columns:repeat(auto-fit,minmax(6px,1fr));align-items:end;gap:2px;height:90px}
+.mini-bar{background:linear-gradient(180deg,var(--brand-orange),#f97316);border-radius:2px 2px 0 0;min-height:6px}
 .footer{border-top:1px solid var(--card-border);margin-top:24px}.footer .container{padding:16px 0}
