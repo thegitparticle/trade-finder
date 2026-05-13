@@ -1,6 +1,8 @@
 const HYPERLIQUID_API_URL = 'https://api.hyperliquid.xyz/info'
 const SNAPSHOT_KV_KEY = 'signal-engine-snapshot-v1'
+const SNAPSHOT_HISTORY_KV_KEY = 'signal-engine-history-v1'
 const ACTIVE_SIGNAL_PREFIX = 'active-signal-v1'
+const HISTORY_WINDOW_MS = 48 * 60 * 60 * 1000
 
 const ENGINE_CONFIG = {
   universe: ['ETH', 'BTC', 'SOL', 'DOGE', 'PEPE', 'XRP'],
@@ -96,6 +98,7 @@ async function getOrRefreshSnapshot(env, forceRefresh = false) {
   if (!forceRefresh && env.MARKET_CACHE) {
     const existing = await env.MARKET_CACHE.get(SNAPSHOT_KV_KEY, 'json')
     if (existing) {
+      existing.history = await getHistory(env)
       return existing
     }
   }
@@ -126,12 +129,42 @@ async function refreshAndPersistSnapshot(env) {
   }
 
   if (env.MARKET_CACHE) {
+    const history = await updateHistory(env, snapshot)
+    snapshot.history = history
     await env.MARKET_CACHE.put(SNAPSHOT_KV_KEY, JSON.stringify(snapshot), {
       expirationTtl: 60 * 60 * 6,
     })
   }
 
   return snapshot
+}
+
+async function getHistory(env) {
+  if (!env.MARKET_CACHE) return []
+  const history = (await env.MARKET_CACHE.get(SNAPSHOT_HISTORY_KV_KEY, 'json')) || []
+  const cutoff = Date.now() - HISTORY_WINDOW_MS
+  return history.filter((entry) => entry.timestamp >= cutoff)
+}
+
+async function updateHistory(env, snapshot) {
+  const now = Date.parse(snapshot.generatedAt)
+  const cutoff = now - HISTORY_WINDOW_MS
+  const existing = (await env.MARKET_CACHE.get(SNAPSHOT_HISTORY_KV_KEY, 'json')) || []
+  const history = existing
+    .filter((entry) => entry.timestamp >= cutoff)
+    .concat({
+      timestamp: now,
+      scanned: snapshot.scanMeta.tokensScanned,
+      surfaced: snapshot.scanMeta.surfacedSignals,
+      transitional: snapshot.scanMeta.transitionalCount,
+      actionable: snapshot.markets.filter((m) => typeof m.signalCandidate?.confidence === 'number' && m.signalCandidate.confidence >= ENGINE_CONFIG.confidence.actionable && !m.signalSuppressed).length,
+      watchlist: snapshot.markets.filter((m) => typeof m.signalCandidate?.confidence === 'number' && m.signalCandidate.confidence >= ENGINE_CONFIG.confidence.watchlist && m.signalCandidate.confidence < ENGINE_CONFIG.confidence.actionable && !m.signalSuppressed).length,
+      suppressed: snapshot.markets.filter((m) => m.signalSuppressed).length,
+    })
+  await env.MARKET_CACHE.put(SNAPSHOT_HISTORY_KV_KEY, JSON.stringify(history), {
+    expirationTtl: 60 * 60 * 72,
+  })
+  return history
 }
 
 async function runHourlyScan(env, now) {
