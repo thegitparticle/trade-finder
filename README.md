@@ -41,27 +41,19 @@ npm run dev
 
 ## Cloudflare Workers deployment
 
-### 1) Create KV namespace (required)
+### 1) KV namespace (required for history charts)
 
-KV namespace is **required** for history charts and signal persistence to work. Without it, the dashboard cannot store or retrieve historical signal snapshots.
+The production KV namespace ID is already configured in `wrangler.jsonc`. No action is needed for production deployments.
+
+**Optional — local development preview namespace:**
+
+If you want KV to work locally with `wrangler dev`, create a preview namespace:
 
 ```bash
-npx wrangler kv namespace create MARKET_CACHE
 npx wrangler kv namespace create MARKET_CACHE --preview
 ```
 
-Each command will output a namespace ID. Copy those IDs and replace the placeholders in `wrangler.jsonc`:
-
-- Replace `YOUR_KV_NAMESPACE_ID` with the ID from the first command (production).
-- Replace `YOUR_PREVIEW_KV_NAMESPACE_ID` with the ID from the `--preview` command.
-
-Example output:
-
-```
-🌀 Creating namespace with title "trade-finder-MARKET_CACHE"
-✨ Success! Add the following to your configuration file:
-  { binding = "MARKET_CACHE", id = "abc123..." }
-```
+Copy the output ID and replace `YOUR_PREVIEW_KV_NAMESPACE_ID` in `wrangler.jsonc`.
 
 ### 2) Run worker locally
 
@@ -70,8 +62,6 @@ npm run dev:worker
 ```
 
 ### 3) Deploy
-
-Make sure you have replaced the placeholder KV namespace IDs in `wrangler.jsonc` before deploying.
 
 ```bash
 npm run deploy

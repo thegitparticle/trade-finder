@@ -10,7 +10,8 @@
   "kv_namespaces": [
     {
       "binding": "MARKET_CACHE",
-      "id": "YOUR_KV_NAMESPACE_ID",
+      "id": "cc6f5f1f2ee1408cbdcbe52977df2eaf",
+      // For local dev, create a preview namespace: npx wrangler kv namespace create MARKET_CACHE --preview
       "preview_id": "YOUR_PREVIEW_KV_NAMESPACE_ID"
     }
   ],
