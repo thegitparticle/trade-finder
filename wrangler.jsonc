@@ -7,6 +7,13 @@
     "directory": "./public",
     "not_found_handling": "single-page-application"
   },
+  "kv_namespaces": [
+    {
+      "binding": "MARKET_CACHE",
+      "id": "YOUR_KV_NAMESPACE_ID",
+      "preview_id": "YOUR_PREVIEW_KV_NAMESPACE_ID"
+    }
+  ],
   "triggers": {
     "crons": ["5 * * * *"]
   }
